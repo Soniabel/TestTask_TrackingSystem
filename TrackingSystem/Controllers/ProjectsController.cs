@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TrackingSystem;
+using TrackingSystem.Static;
 
 namespace TrackingSystem.Controllers
 {
@@ -34,13 +35,8 @@ namespace TrackingSystem.Controllers
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error Performing GET in {nameof(GetProject)}");
-                throw;
+                return StatusCode(500, Messages.Error500Message);
             }
-          //if (_context.Projects == null)
-          //{
-          //    return NotFound();
-          //}
-          //  return await _context.Projects.ToListAsync();
         }
 
         // GET: api/Projects/5
@@ -61,7 +57,7 @@ namespace TrackingSystem.Controllers
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error Performing GET in {nameof(GetProject)}");
-                throw;
+                return StatusCode(500, Messages.Error500Message);
             }
            
         }
@@ -92,7 +88,7 @@ namespace TrackingSystem.Controllers
                 else
                 {
                     logger.LogError(ex, $"Error Performing GET in {nameof(PutProject)}");
-                    throw;
+                    return StatusCode(500, Messages.Error500Message);
                 }
             }
 
@@ -119,7 +115,7 @@ namespace TrackingSystem.Controllers
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error Performing POST in {nameof(PostProject)}");
-                throw;
+                return StatusCode(500, Messages.Error500Message);
             }
             
         }
@@ -130,10 +126,6 @@ namespace TrackingSystem.Controllers
         {
             try
             {
-                if (_context.Projects == null)
-                {
-                    return NotFound();
-                }
                 var project = await _context.Projects.FindAsync(id);
                 if (project == null)
                 {
@@ -149,7 +141,7 @@ namespace TrackingSystem.Controllers
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error Performing DELETE in {nameof(DeleteProject)}");
-                throw;
+                return StatusCode(500, Messages.Error500Message);
             }
            
         }

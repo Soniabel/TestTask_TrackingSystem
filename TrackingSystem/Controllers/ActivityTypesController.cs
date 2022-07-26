@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TrackingSystem;
+using TrackingSystem.Static;
 
 namespace TrackingSystem.Controllers
 {
@@ -14,9 +15,11 @@ namespace TrackingSystem.Controllers
     public class ActivityTypesController : ControllerBase
     {
         private readonly DBTrackingContext _context;
+        private readonly ILogger<ActivityTypesController> logger;
 
-        public ActivityTypesController(DBTrackingContext context)
+        public ActivityTypesController(DBTrackingContext context, ILogger<ActivityTypesController> logger)
         {
+            this.logger = logger;
             _context = context;
         }
 
@@ -24,29 +27,44 @@ namespace TrackingSystem.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ActivityType>>> GetActivityTypes()
         {
-          if (_context.ActivityTypes == null)
-          {
-              return NotFound();
-          }
-            return await _context.ActivityTypes.ToListAsync();
+            try
+            {
+                if (_context.ActivityTypes == null)
+                {
+                    logger.LogWarning($"Records Not Found: {nameof(GetActivityTypes)}");
+                    return NotFound();
+                }
+                var activityTypes = await _context.ActivityTypes.ToListAsync();
+                return Ok(activityTypes);
+            }
+            catch(Exception ex)
+            {
+                logger.LogError(ex, $"Error Performing GET in {nameof(GetActivityTypes)}");
+                return StatusCode(500, Messages.Error500Message);
+            }
         }
 
         // GET: api/ActivityTypes/5
         [HttpGet("{id}")]
         public async Task<ActionResult<ActivityType>> GetActivityType(int id)
         {
-          if (_context.ActivityTypes == null)
-          {
-              return NotFound();
-          }
-            var activityType = await _context.ActivityTypes.FindAsync(id);
-
-            if (activityType == null)
+            try
             {
-                return NotFound();
-            }
+                var activityType = await _context.ActivityTypes.FindAsync(id);
 
-            return activityType;
+                if (activityType == null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(activityType);
+            }
+            catch(Exception ex)
+            {
+                logger.LogError(ex, $"Error Performing GET in {nameof(GetActivityType)}");
+                return StatusCode(500, Messages.Error500Message);
+            }
+          
         }
 
         // PUT: api/ActivityTypes/5
@@ -56,6 +74,7 @@ namespace TrackingSystem.Controllers
         {
             if (id != activityType.Id)
             {
+                logger.LogWarning($"Update ID invalid in {nameof(PutActivityType)} - ID: {id}");
                 return BadRequest();
             }
 
@@ -65,7 +84,7 @@ namespace TrackingSystem.Controllers
             {
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
                 if (!ActivityTypeExists(id))
                 {
@@ -73,7 +92,9 @@ namespace TrackingSystem.Controllers
                 }
                 else
                 {
-                    throw;
+                    logger.LogError(ex, $"Error Performing GET in {nameof(PutActivityType)}");
+                    return StatusCode(500, Messages.Error500Message);
+                    
                 }
             }
 
@@ -85,34 +106,48 @@ namespace TrackingSystem.Controllers
         [HttpPost]
         public async Task<ActionResult<ActivityType>> PostActivityType(ActivityType activityType)
         {
-          if (_context.ActivityTypes == null)
-          {
-              return Problem("Entity set 'DBTrackingContext.ActivityTypes'  is null.");
-          }
-            _context.ActivityTypes.Add(activityType);
-            await _context.SaveChangesAsync();
+            try
+            {
+                if (_context.ActivityTypes == null)
+                {
+                    return Problem("Entity set 'DBTrackingContext.ActivityTypes'  is null.");
+                }
+                _context.ActivityTypes.Add(activityType);
+                await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetActivityType", new { id = activityType.Id }, activityType);
+                return CreatedAtAction("GetActivityType", new { id = activityType.Id }, activityType);
+            }
+            catch(Exception ex)
+            {
+                logger.LogError(ex, $"Error Performing POST in {nameof(PostActivityType)}", activityType);
+                return StatusCode(500, Messages.Error500Message);
+            }
+          
         }
 
         // DELETE: api/ActivityTypes/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteActivityType(int id)
         {
-            if (_context.ActivityTypes == null)
+            try
             {
-                return NotFound();
+                var activityType = await _context.ActivityTypes.FindAsync(id);
+                if (activityType == null)
+                {
+                    logger.LogWarning($"{nameof(ActivityType)} record not found in {nameof(DeleteActivityType)} - ID: {id}");
+                    return NotFound();
+                }
+
+                _context.ActivityTypes.Remove(activityType);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
             }
-            var activityType = await _context.ActivityTypes.FindAsync(id);
-            if (activityType == null)
+            catch (Exception ex)
             {
-                return NotFound();
+                logger.LogError(ex, $"Error Performing DELETE in {nameof(DeleteActivityType)}");
+                return StatusCode(500, Messages.Error500Message);
             }
-
-            _context.ActivityTypes.Remove(activityType);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
         }
 
         private bool ActivityTypeExists(int id)

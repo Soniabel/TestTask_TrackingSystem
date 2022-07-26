@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TrackingSystem;
+using TrackingSystem.Static;
 
 namespace TrackingSystem.Controllers
 {
@@ -14,39 +15,52 @@ namespace TrackingSystem.Controllers
     public class ActivitiesController : ControllerBase
     {
         private readonly DBTrackingContext _context;
+        private readonly ILogger<ActivitiesController> logger;
 
-        public ActivitiesController(DBTrackingContext context)
+        public ActivitiesController(DBTrackingContext context, ILogger<ActivitiesController> logger)
         {
             _context = context;
+            this.logger = logger;
         }
 
         // GET: api/Activities
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Activity>>> GetActivities()
         {
-            if (_context.Activities == null)
+            try
             {
-                return NotFound();
+                var activities = await _context.Activities.ToListAsync();
+                return Ok(activities);
             }
-            return await _context.Activities.ToListAsync();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error Performing GET in {nameof(GetActivities)}");
+                return StatusCode(500, Messages.Error500Message);
+            }
+           
         }
 
         // GET: api/Activities/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Activity>> GetActivity(int id)
         {
-            if (_context.Activities == null)
+            try
             {
-                return NotFound();
-            }
-            var activity = await _context.Activities.FindAsync(id);
+                var activity = await _context.Activities.FindAsync(id);
 
-            if (activity == null)
+                if (activity == null)
+                {
+                    logger.LogWarning($"Record Not Found: {nameof(GetActivity)} - ID: {id}");
+                    return NotFound();
+                }
+                return Ok(activity);
+            }
+            catch(Exception ex)
             {
-                return NotFound();
+                logger.LogError(ex, $"Error Performing GET in {nameof(GetActivity)}");
+                return StatusCode(500, Messages.Error500Message);
             }
-
-            return activity;
+           
         }
 
         
@@ -58,6 +72,7 @@ namespace TrackingSystem.Controllers
         {
             if (id != activity.Id)
             {
+                logger.LogWarning($"Update ID invalid in {nameof(PutActivity)} - ID: {id}");
                 return BadRequest();
             }
 
@@ -67,7 +82,7 @@ namespace TrackingSystem.Controllers
             {
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
                 if (!ActivityExists(id))
                 {
@@ -75,7 +90,8 @@ namespace TrackingSystem.Controllers
                 }
                 else
                 {
-                    throw;
+                    logger.LogError(ex, $"Error Performing GET in {nameof(PutActivity)}");
+                    return StatusCode(500, Messages.Error500Message);
                 }
             }
 
@@ -87,34 +103,47 @@ namespace TrackingSystem.Controllers
         [HttpPost]
         public async Task<ActionResult<Activity>> PostActivity(Activity activity)
         {
-          if (_context.Activities == null)
-          {
-              return Problem("Entity set 'DBTrackingContext.Activities'  is null.");
-          }
-            _context.Activities.Add(activity);
-            await _context.SaveChangesAsync();
+            try
+            {
+                if (_context.Activities == null)
+                {
+                    return Problem("Entity set 'DBTrackingContext.Activities'  is null.");
+                }
+                _context.Activities.Add(activity);
+                await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetActivity", new { id = activity.Id }, activity);
+                return CreatedAtAction("GetActivity", new { id = activity.Id }, activity);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Error Performing POST in {nameof(PostActivity)}", activity);
+                return StatusCode(500, Messages.Error500Message);
+            }
         }
 
         // DELETE: api/Activities/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteActivity(int id)
         {
-            if (_context.Activities == null)
+            try
             {
-                return NotFound();
+                var activity = await _context.Activities.FindAsync(id);
+                if (activity == null)
+                {
+                    logger.LogWarning($"{nameof(Activity)} record not found in {nameof(DeleteActivity)} - ID: {id}");
+                    return NotFound();
+                }
+
+                _context.Activities.Remove(activity);
+                await _context.SaveChangesAsync();
+                return NoContent();
             }
-            var activity = await _context.Activities.FindAsync(id);
-            if (activity == null)
+            catch(Exception ex)
             {
-                return NotFound();
+                logger.LogError(ex, $"Error Performing DELETE in {nameof(DeleteActivity)}");
+                return StatusCode(500, Messages.Error500Message);
             }
-
-            _context.Activities.Remove(activity);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+               
         }
 
         private bool ActivityExists(int id)
